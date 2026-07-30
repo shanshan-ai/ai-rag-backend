@@ -1,23 +1,42 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from rag import search_knowledge_base
 
 app = FastAPI(title="AI RAG Knowledge Base Backend")
+
  #定义前端传过来的数据格式 （利用 FastAPI 的 Pydantic 检验）
 class QueryRequest(BaseModel):
     question: str
+    k: int = 2
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the AI RAG Knowledge Base Backend!"}
 
 #定义一个 POST 类型的聊天/检索窗口
 @app.post("/api/chat")
 def chat_with_rag(request: QueryRequest):
-    #目前先用“模拟返回“，后续接入向量数据库和本地大模型
     user_question = request.question
 
-    return {
-        "code": 200,
-        "message": "Success",
-        "data": {
-            "question": user_question,
-            "answer": f"收到你的问题： 【{user_question}】。系统正在努力检索知识库中...(此为阶段一的模拟响应) "
+    try:
+        #调用rag.py中的真实检索函数
+        results = search_knowledge_base(user_question, k=request.k)
 
+        #提取检索到的文本内容
+        retrieved_texts = [doc.page_content for doc in results]
+
+        return {
+            "code": 200,
+            "message": "Success",
+            "data": {
+                "question": user_question,
+                "retrieved_docs": retrieved_texts,
+                "answer": f"基于本地知识库检索，为您找到以下内容： "
+            }
         }
-    }
+    except Exception as e:
+        return {
+            "code": 500,
+            "message": str(e),
+            "data": None
+        }
