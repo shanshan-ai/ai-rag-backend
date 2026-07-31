@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from rag import search_knowledge_base
+from rag import search_knowledge_base,generate_answer
 
 app = FastAPI(title="AI RAG Knowledge Base Backend")
 
@@ -22,6 +22,9 @@ def chat_with_rag(request: QueryRequest):
         #调用rag.py中的真实检索函数
         results = search_knowledge_base(user_question, k=request.k)
 
+        #调用 rag.py 中大模型生成函数，让 GLM-5.2 结合检索到的资料回答
+        ai_answer = generate_answer(user_question, results)
+
         #提取检索到的文本内容
         retrieved_texts = [doc.page_content for doc in results]
 
@@ -31,7 +34,7 @@ def chat_with_rag(request: QueryRequest):
             "data": {
                 "question": user_question,
                 "retrieved_docs": retrieved_texts,
-                "answer": f"基于本地知识库检索，为您找到以下内容： "
+                "answer": ai_answer
             }
         }
     except Exception as e:
